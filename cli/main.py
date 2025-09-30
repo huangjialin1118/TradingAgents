@@ -24,8 +24,17 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
+from cli.i18n import init_i18n, t as i18n_t
+from cli.report_export import save_reports
+import sys
+import io
 
-console = Console()
+# Ensure UTF-8 encoding for Windows console
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
+console = Console(force_terminal=True, legacy_windows=False)
 
 app = typer.Typer(
     name="TradingAgents",
@@ -393,26 +402,28 @@ def update_display(layout, spinner_text=None):
 
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
+    # Step 0: Language selection (FIRST!)
+    selected_language = select_language()
+    i18n = init_i18n(selected_language)
+
     # Display ASCII art welcome message
     with open("./cli/static/welcome.txt", "r") as f:
         welcome_ascii = f.read()
 
-    # Create welcome box content
+    # Create welcome box content with i18n
     welcome_content = f"{welcome_ascii}\n"
-    welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
-    welcome_content += "[bold]Workflow Steps:[/bold]\n"
-    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
-    welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
-    )
+    welcome_content += f"[bold green]{i18n.t('welcome_description')}[/bold green]\n\n"
+    welcome_content += f"[bold]{i18n.t('workflow_steps')}[/bold]\n"
+    welcome_content += f"{i18n.t('workflow_description')}\n\n"
+    welcome_content += f"[dim]{i18n.t('built_by')}[/dim]"
 
     # Create and center the welcome box
     welcome_box = Panel(
         welcome_content,
         border_style="green",
         padding=(1, 2),
-        title="Welcome to TradingAgents",
-        subtitle="Multi-Agents LLM Financial Trading Framework",
+        title=i18n.t("welcome_title"),
+        subtitle=i18n.t("welcome_subtitle"),
     )
     console.print(Align.center(welcome_box))
     console.print()  # Add a blank line after the welcome box
@@ -428,7 +439,7 @@ def get_user_selections():
     # Step 1: Ticker symbol
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
+            i18n.t("step1_ticker_title"), i18n.t("step1_ticker_prompt"), "SPY"
         )
     )
     selected_ticker = get_ticker()
@@ -437,8 +448,8 @@ def get_user_selections():
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
-            "Step 2: Analysis Date",
-            "Enter the analysis date (YYYY-MM-DD)",
+            i18n.t("step2_date_title"),
+            i18n.t("step2_date_prompt"),
             default_date,
         )
     )
@@ -447,38 +458,76 @@ def get_user_selections():
     # Step 3: Select analysts
     console.print(
         create_question_box(
-            "Step 3: Analysts Team", "Select your LLM analyst agents for the analysis"
+            i18n.t("step3_analysts_title"), i18n.t("step3_analysts_prompt")
         )
     )
     selected_analysts = select_analysts()
     console.print(
-        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
+        f"[green]{i18n.t('selected_analysts')}[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
     # Step 4: Research depth
     console.print(
         create_question_box(
-            "Step 4: Research Depth", "Select your research depth level"
+            i18n.t("step4_depth_title"), i18n.t("step4_depth_prompt")
         )
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: LLM Provider
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            i18n.t("step5_provider_title"), i18n.t("step5_provider_prompt")
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
-    
+
     # Step 6: Thinking agents
     console.print(
         create_question_box(
-            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+            i18n.t("step6_thinking_title"), i18n.t("step6_thinking_prompt")
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+
+    # Step 7: Translation option (NEW - only for Chinese)
+    enable_translation = False
+    translation_llm = None
+    if selected_language == "zh":
+        console.print(
+            create_question_box(
+                i18n.t("step7_translation_title"), i18n.t("step7_translation_prompt")
+            )
+        )
+        enable_translation = select_translation_option(i18n.t)
+
+        # Step 8: Translation LLM (only if translation enabled)
+        if enable_translation:
+            console.print(
+                create_question_box(
+                    i18n.t("step8_translation_llm_title"), i18n.t("step8_translation_llm_prompt")
+                )
+            )
+            translation_llm = select_translation_llm(selected_llm_provider, i18n.t)
+
+    # Step 9: Save report option (NEW)
+    console.print(
+        create_question_box(
+            i18n.t("step9_save_title"), i18n.t("step9_save_prompt")
+        )
+    )
+    save_report = select_save_report(i18n.t)
+
+    # Step 10: Report format (NEW - only if saving)
+    report_format = []
+    if save_report:
+        console.print(
+            create_question_box(
+                i18n.t("step10_format_title"), i18n.t("step10_format_prompt")
+            )
+        )
+        report_format = select_report_format(i18n.t)
 
     return {
         "ticker": selected_ticker,
@@ -489,6 +538,12 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "language": selected_language,
+        "i18n": i18n,  # Pass i18n instance for later use
+        "enable_translation": enable_translation,
+        "translation_llm": translation_llm,
+        "save_report": save_report,
+        "report_format": report_format,
     }
 
 
@@ -764,7 +819,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding='utf-8') as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -775,7 +830,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding='utf-8') as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -788,7 +843,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding='utf-8') as f:
                         f.write(content)
         return wrapper
 
@@ -1094,6 +1149,87 @@ def run_analysis():
         display_complete_report(final_state)
 
         update_display(layout)
+
+        # Get i18n instance
+        i18n = selections.get("i18n")
+
+        # Get English report
+        english_report = message_buffer.final_report
+
+        # Translate if needed
+        chinese_report = None
+        if selections.get("enable_translation") and selections.get("translation_llm"):
+            if i18n:
+                console.print(f"\n[yellow]{i18n.t('translation_in_progress')}[/yellow]")
+            else:
+                console.print("\n[yellow]Translating report to Chinese...[/yellow]")
+
+            try:
+                chinese_report = graph.translate_report(
+                    english_report,
+                    selections["translation_llm"]
+                )
+                if i18n:
+                    console.print(f"[green]{i18n.t('translation_completed')}[/green]")
+                else:
+                    console.print("[green]Translation completed![/green]")
+
+                # Display Chinese report
+                try:
+                    console.print("\n" + "="*80)
+                    console.print("[bold cyan]📊 中文报告 / Chinese Report[/bold cyan]")
+                    console.print("="*80 + "\n")
+
+                    # Ensure the report is properly encoded
+                    if isinstance(chinese_report, bytes):
+                        chinese_report = chinese_report.decode('utf-8')
+
+                    from rich.markdown import Markdown
+                    md = Markdown(chinese_report)
+                    console.print(md)
+                    console.print("\n" + "="*80 + "\n")
+                except UnicodeEncodeError as ue:
+                    # Fallback: save to file and notify user
+                    console.print("[yellow]⚠️  终端编码问题，中文报告已保存到文件[/yellow]")
+                    console.print("[yellow]   Terminal encoding issue, Chinese report saved to file[/yellow]")
+                except Exception as display_error:
+                    console.print(f"[yellow]Warning: Could not display Chinese report in terminal: {display_error}[/yellow]")
+                    console.print("[yellow]The report will still be saved to file if save option is enabled.[/yellow]")
+
+            except Exception as e:
+                if i18n:
+                    console.print(f"[red]{i18n.t('error_translation_failed')}[/red]")
+                else:
+                    console.print("[red]Translation failed, showing English report only.[/red]")
+                console.print(f"[dim]Error: {str(e)}[/dim]")
+
+        # Save reports if requested
+        if selections.get("save_report") and selections.get("report_format"):
+            if i18n:
+                console.print(f"\n[green]{i18n.t('saving_report')}[/green]")
+            else:
+                console.print("\n[green]Saving report...[/green]")
+
+            try:
+                saved_files = save_reports(
+                    english_report=english_report,
+                    chinese_report=chinese_report,
+                    formats=selections["report_format"],
+                    output_dir=report_dir,
+                    ticker=selections["ticker"],
+                    date=selections["analysis_date"],
+                    t_func=i18n.t if i18n else None
+                )
+                if i18n:
+                    console.print(f"[green]{i18n.t('report_saved')}[/green]")
+                else:
+                    console.print("[green]Report saved successfully![/green]")
+                for filepath in saved_files:
+                    console.print(f"  📄 {filepath}")
+            except Exception as e:
+                console.print(f"[red]Error saving report: {str(e)}[/red]")
+                import traceback
+                traceback.print_exc()
 
 
 @app.command()

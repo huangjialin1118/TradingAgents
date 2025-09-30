@@ -15,6 +15,7 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import FinancialSituationMemory
+from tradingagents.agents.translator import ReportTranslator
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
@@ -252,3 +253,30 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def translate_report(self, english_report, translation_model_name):
+        """
+        Translate English report to Chinese
+
+        Args:
+            english_report: The English report text (Markdown format)
+            translation_model_name: Model name for translation
+
+        Returns:
+            Chinese translation of the report
+        """
+        # Create LLM instance for translation
+        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
+            translation_llm = ChatOpenAI(model=translation_model_name, base_url=self.config["backend_url"])
+        elif self.config["llm_provider"].lower() == "anthropic":
+            translation_llm = ChatAnthropic(model=translation_model_name, base_url=self.config["backend_url"])
+        elif self.config["llm_provider"].lower() == "google":
+            translation_llm = ChatGoogleGenerativeAI(model=translation_model_name)
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
+
+        # Create translator and translate
+        translator = ReportTranslator(translation_llm)
+        chinese_report = translator.translate(english_report)
+
+        return chinese_report

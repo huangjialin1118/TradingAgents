@@ -132,6 +132,30 @@ python -m cli.main
 ```
 You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
 
+#### 🌐 New Features (2025 Update)
+
+**1. Bilingual Interface (English/中文)**
+- Choose your preferred language at startup
+- Complete internationalization of all UI elements
+- Professional financial terminology translation
+
+**2. Report Translation**
+- Translate analysis reports to Chinese using advanced LLMs
+- Maintains Markdown formatting and table structures
+- Flexible model selection (GPT-5 series recommended)
+
+**3. Report Export**
+- Save reports in multiple formats: Markdown (.md) and HTML (.html)
+- Professional HTML styling with responsive design
+- Timestamped filenames to avoid conflicts
+
+**4. GPT-5 Model Support**
+- Full support for OpenAI's 2025 models (GPT-5, GPT-5 Mini, GPT-5 Nano)
+- o3 series support (o3-pro, o3, o4-mini)
+- Flexible model selection for different use cases
+
+For detailed Chinese feature guide, see [CHINESE_FEATURE_GUIDE.md](CHINESE_FEATURE_GUIDE.md)
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
@@ -150,7 +174,12 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-4.1-mini` to save on costs as our framework makes **lots of** API calls.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-5-nano` (or `gpt-5-mini`) to save on costs as our framework makes **lots of** API calls.
+
+**2025 Model Recommendations:**
+- **Production (Best Quality)**: `o3` (deep think) + `gpt-5` (quick think)
+- **Balanced (Recommended)**: `o4-mini` (deep think) + `gpt-5-mini` (quick think) - Default
+- **Testing (Low Cost)**: `o4-mini` (deep think) + `gpt-5-nano` (quick think)
 
 ### Python Usage
 

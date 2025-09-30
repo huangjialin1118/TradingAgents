@@ -1,9 +1,44 @@
+# Python
 env/
+venv/
+.venv
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Data and results
 *.csv
-src/
+results/
+*.log
+data_cache/
 eval_results/
 eval_data/
-*.egg-info/
-.env
+src/
+
+# API keys (safety)
+*_api_key.txt
+*_credentials.json
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
